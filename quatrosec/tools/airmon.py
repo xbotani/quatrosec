@@ -59,7 +59,7 @@ class Airmon(Dependency):
     killed_network_manager = False
 
     # Drivers that need to be manually put into monitor mode
-    BAD_DRIVERS = ['rtl8821au']
+    BAD_DRIVERS = ['rtl8821au', 'rtl8192eu', 'rtl8188eu', 'rtl8192cu', 'rtl8188cu', 'rtl8192de', 'rtl8192ce']
     #see if_arp.h
     ARPHRD_ETHER = 1 #managed
     ARPHRD_IEEE80211_RADIOTAP = 803 #monitor
@@ -89,18 +89,35 @@ class Airmon(Dependency):
         interfaces = []
         p = Process('airmon-ng')
         for line in p.stdout().split('\n'):
-            # [PHY ]IFACE DRIVER CHIPSET
+            # Handle different airmon-ng output formats
+            # Format 1: PHY\tIFACE\tDRIVER\tCHIPSET
+            # Format 2: IFACE\tDRIVER\tCHIPSET
+            # Format 3: PHY IFACE DRIVER CHIPSET (space separated)
+            
+            # Try tab-separated format first
             airmon_re = re.compile(r'^(?:([^\t]*)\t+)?([^\t]*)\t+([^\t]*)\t+([^\t]*)$')
             matches = airmon_re.match(line)
+            
+            if not matches:
+                # Try space-separated format
+                airmon_re = re.compile(r'^(\S+)\s+(\S+)\s+(\S+)\s+(.+)$')
+                matches = airmon_re.match(line)
+            
             if not matches:
                 continue
 
             phy, interface, driver, chipset = matches.groups()
-            if phy == 'PHY' or phy == 'Interface':
+            if phy == 'PHY' or phy == 'Interface' or interface == 'Interface':
                 continue  # Header
 
             if len(interface.strip()) == 0:
                 continue
+
+            # Clean up the values
+            phy = phy.strip() if phy else ''
+            interface = interface.strip()
+            driver = driver.strip()
+            chipset = chipset.strip()
 
             interfaces.append(AirmonIface(phy, interface, driver, chipset))
 
@@ -112,18 +129,28 @@ class Airmon(Dependency):
         Manually put interface into monitor mode (no airmon-ng or vif).
         Fix for bad drivers like the rtl8812AU.
         '''
-        Ifconfig.down(iface)
-        Iwconfig.mode(iface, 'monitor')
-        Ifconfig.up(iface)
+        try:
+            Ifconfig.down(iface)
+            Iwconfig.mode(iface, 'monitor')
+            Ifconfig.up(iface)
 
-        # /sys/class/net/wlan0/type
-        iface_type_path = os.path.join('/sys/class/net', iface, 'type')
-        if os.path.exists(iface_type_path):
-            with open(iface_type_path, 'r') as f:
-                if (int(f.read()) == Airmon.ARPHRD_IEEE80211_RADIOTAP):
-                    return iface
+            # /sys/class/net/wlan0/type
+            iface_type_path = os.path.join('/sys/class/net', iface, 'type')
+            if os.path.exists(iface_type_path):
+                with open(iface_type_path, 'r') as f:
+                    if (int(f.read()) == Airmon.ARPHRD_IEEE80211_RADIOTAP):
+                        return iface
 
-        return None
+            # Alternative check: use iwconfig to verify monitor mode
+            monitor_interfaces = Iwconfig.get_interfaces(mode='Monitor')
+            if iface in monitor_interfaces:
+                return iface
+
+            return None
+        except Exception as e:
+            if Configuration.verbose > 0:
+                Color.pl('{O}هەڵە لە start_bad_driver: %s{W}' % str(e))
+            return None
 
     @staticmethod
     def stop_bad_driver(iface):
@@ -174,9 +201,18 @@ class Airmon(Dependency):
 
         enabled_iface = Airmon._parse_airmon_start(airmon_output)
 
+        # If parsing failed and we have a bad driver, try manual method
         if enabled_iface is None and driver in Airmon.BAD_DRIVERS:
             Color.p('{O}"لێخوڕی خراپ" دۆزرایەوە{W} ')
             enabled_iface = Airmon.start_bad_driver(iface_name)
+
+        # If still None, try to find any monitor interface
+        if enabled_iface is None:
+            monitor_interfaces = Iwconfig.get_interfaces(mode='Monitor')
+            if len(monitor_interfaces) > 0:
+                # Use the first available monitor interface
+                enabled_iface = monitor_interfaces[0]
+                Color.p('{O}بەکارهێنانی ڕووکاری چاودێری دۆزراوە: {C}%s{W}' % enabled_iface)
 
         if enabled_iface is None:
             Color.pl('{R}سەرکەوتوو نەبوو{W}')
@@ -202,13 +238,25 @@ class Airmon(Dependency):
     def _parse_airmon_start(airmon_output):
         '''Find the interface put into monitor mode (if any)'''
 
-        # airmon-ng output: (mac80211 monitor mode vif enabled for [phy10]wlan0 on [phy10]wlan0mon)
-        enabled_re = re.compile(r'.*\(mac80211 monitor mode (?:vif )?enabled (?:for [^ ]+ )?on (?:\[\w+\])?(\w+)\)?.*')
+        # Multiple regex patterns to handle different airmon-ng output formats
+        patterns = [
+            # Standard format: (mac80211 monitor mode vif enabled for [phy10]wlan0 on [phy10]wlan0mon)
+            r'.*\(mac80211 monitor mode (?:vif )?enabled (?:for [^ ]+ )?on (?:\[\w+\])?(\w+)\)?.*',
+            # Alternative format: (mac80211 monitor mode vif enabled on [phy10]wlan0mon)
+            r'.*\(mac80211 monitor mode (?:vif )?enabled on (?:\[\w+\])?(\w+)\)?.*',
+            # Simple format: wlan0mon (monitor mode enabled)
+            r'(\w+).*\(monitor mode enabled\)',
+            # Another format: wlan0mon (monitor mode)
+            r'(\w+).*\(monitor mode\)',
+            # Generic format: any interface ending with 'mon'
+            r'(\w+mon)',
+        ]
 
         for line in airmon_output.split('\n'):
-            matches = enabled_re.match(line)
-            if matches:
-                return matches.group(1)
+            for pattern in patterns:
+                matches = re.match(pattern, line)
+                if matches:
+                    return matches.group(1)
 
         return None
 
@@ -286,6 +334,13 @@ class Airmon(Dependency):
         Color.p('{+} پشکنینی {C}airmon-ng{W}...')
         a = Airmon()
         count = len(a.interfaces)
+        
+        # Debug: Print found interfaces
+        if Configuration.verbose > 0:
+            Color.pl('{O}دۆزراوە %d ڕووکاری بێسیم{W}' % count)
+            for i, iface in enumerate(a.interfaces):
+                Color.pl('{O}  %d. %s (%s) - %s{W}' % (i+1, iface.interface, iface.driver, iface.chipset))
+        
         if count == 0:
             Color.pl('\n{!} {O}airmon-ng هیچ ڕووکاری بێسیم نەدۆزیەوە')
             Color.pl('{!} {O}دڵنیابە کە ئامێری بێسیمەکەت بەستراویە')

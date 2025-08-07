@@ -25,7 +25,16 @@ class Ifconfig(Dependency):
         pid = Process(command)
         pid.wait()
         if pid.poll() != 0:
-            raise Exception('Error putting interface %s up:\n%s\n%s' % (interface, pid.stdout(), pid.stderr()))
+            # Don't raise exception, just log the error
+            from ..util.color import Color
+            from ..config import Configuration
+            if Configuration.verbose > 0:
+                Color.pl('{O}هەڵە لە دانانی ڕووکار %s بەرز: %s{W}' % (interface, pid.stderr()))
+            # Try alternative method using ip command
+            try:
+                Process(['ip', 'link', 'set', interface, 'up']).wait()
+            except:
+                pass
 
 
     @classmethod
@@ -36,7 +45,16 @@ class Ifconfig(Dependency):
         pid = Process(['ifconfig', interface, 'down'])
         pid.wait()
         if pid.poll() != 0:
-            raise Exception('Error putting interface %s down:\n%s\n%s' % (interface, pid.stdout(), pid.stderr()))
+            # Don't raise exception, just log the error
+            from ..util.color import Color
+            from ..config import Configuration
+            if Configuration.verbose > 0:
+                Color.pl('{O}هەڵە لە دانانی ڕووکار %s خوار: %s{W}' % (interface, pid.stderr()))
+            # Try alternative method using ip command
+            try:
+                Process(['ip', 'link', 'set', interface, 'down']).wait()
+            except:
+                pass
 
 
     @classmethod

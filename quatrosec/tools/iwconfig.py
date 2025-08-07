@@ -16,6 +16,13 @@ class Iwconfig(Dependency):
         pid = Process(['iwconfig', iface, 'mode', mode_name])
         pid.wait()
 
+        if pid.poll() != 0:
+            # Try alternative method using iw command
+            try:
+                Process(['iw', 'dev', iface, 'set', 'type', mode_name]).wait()
+            except:
+                pass
+
         return pid.poll()
 
 
@@ -44,6 +51,13 @@ class Iwconfig(Dependency):
 
             if mode is not None and 'Mode:{}'.format(mode) in line and len(iface) > 0:
                 interfaces.add(iface)
+
+        # Debug: Print found interfaces if verbose
+        if mode is not None and len(interfaces) > 0:
+            from ..config import Configuration
+            if Configuration.verbose > 0:
+                from ..util.color import Color
+                Color.pl('{O}دۆزراوە %d ڕووکاری %s: %s{W}' % (len(interfaces), mode, ', '.join(interfaces)))
 
         return list(interfaces)
 
