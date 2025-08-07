@@ -40,7 +40,7 @@ class AirmonIface(object):
     def menu_header():
         ''' Colored header row for interfaces '''
         s = '    '  # Space for index #
-        s += 'ڕووەکە'.ljust(AirmonIface.INTERFACE_LEN)
+        s += 'ڕووکار'.ljust(AirmonIface.INTERFACE_LEN)
         s += 'فیزیکی'.ljust(AirmonIface.PHY_LEN)
         s += 'لێخوڕ'.ljust(AirmonIface.DRIVER_LEN)
         s += 'چیپسێت'.ljust(AirmonIface.CHIPSET_LEN)
@@ -168,7 +168,7 @@ class Airmon(Dependency):
         # Remember this as the 'base' interface.
         Airmon.base_interface = iface_name
 
-        Color.p('{+} چالاککردنی {G}شێوازی چاودێری{W} لەسەر {C}%s{W}... ' % iface_name)
+        Color.p('{+} چالاککردنی {G}دۆخی چاودێری{W} لەسەر {C}%s{W}... ' % iface_name)
 
         airmon_output = Process(['airmon-ng', 'start', iface_name]).stdout()
 
@@ -186,12 +186,12 @@ class Airmon(Dependency):
         # Assert that there is an interface in monitor mode
         if len(monitor_interfaces) == 0:
             Color.pl('{R}سەرکەوتوو نەبوو{W}')
-            raise Exception('ناتوانرێت هیچ ڕووەکەیەک بدۆزرێتەوە لە شێوازی چاودێری:Mode')
+            raise Exception('ناتوانرێت هیچ ڕووکارێک بدۆزرێتەوە لە دۆخی چاودێری')
 
         # Assert that the interface enabled by airmon-ng is in monitor mode
         if enabled_iface not in monitor_interfaces:
             Color.pl('{R}سەرکەوتوو نەبوو{W}')
-            raise Exception('ناتوانرێت %s لە شێوازی چاودێری:Mode بدۆزرێتەوە' % enabled_iface)
+            raise Exception('ناتوانرێت %s لە دۆخی چاودێری بدۆزرێتەوە' % enabled_iface)
 
         # No errors found; the device 'enabled_iface' was put into Mode:Monitor.
         Color.pl('{G}چالاککرا {C}%s{W}' % enabled_iface)
@@ -214,7 +214,7 @@ class Airmon(Dependency):
 
     @staticmethod
     def stop(iface):
-        Color.p('{!} {R}ناچالاککردنی {O}شێوازی چاودێری{O} لەسەر {R}%s{O}... ' % iface)
+        Color.p('{!} {R}ناچالاککردنی {O}دۆخی چاودێری{O} لەسەر {R}%s{O}... ' % iface)
 
         airmon_output = Process(['airmon-ng', 'stop', iface]).stdout()
 
@@ -227,7 +227,7 @@ class Airmon(Dependency):
         if disabled_iface:
             Color.pl('{G}ناچالاککرا %s{W}' % disabled_iface)
         else:
-            Color.pl('{O}نەتوانرا ناچالاک بکرێت لە {R}%s{W}' % iface)
+            Color.pl('{O}نەتوانرا ناچالاک بکرێت {R}%s{W}' % iface)
 
         return (disabled_iface, enabled_iface)
 
@@ -272,13 +272,13 @@ class Airmon(Dependency):
         '''
         Airmon.terminate_conflicting_processes()
 
-        Color.p('\n{+} گەڕان بەدوای {C}ڕووەکەی بێسیم{W}...')
+        Color.p('\n{+} گەڕان بەدوای {C}ڕووکاری بێسیم{W}...')
         monitor_interfaces = Iwconfig.get_interfaces(mode='Monitor')
         if len(monitor_interfaces) == 1:
             # Assume we're using the device already in montior mode
             iface = monitor_interfaces[0]
             Color.clear_entire_line()
-            Color.pl('{+} بەکارهێنانی {G}%s{W} کە لە شێوازی چاودێری دایە' % iface)
+            Color.pl('{+} بەکارهێنانی {G}%s{W} کە لە دۆخی چاودێری دایە' % iface)
             Airmon.base_interface = None
             return iface
 
@@ -287,7 +287,7 @@ class Airmon(Dependency):
         a = Airmon()
         count = len(a.interfaces)
         if count == 0:
-            Color.pl('\n{!} {O}airmon-ng هیچ ڕووەکەی بێسیم نەدۆزیەوە')
+            Color.pl('\n{!} {O}airmon-ng هیچ ڕووکاری بێسیم نەدۆزیەوە')
             Color.pl('{!} {O}دڵنیابە کە ئامێری بێسیمەکەت بەستراویە')
             Color.pl('{!} {O}سەیری {C}http://www.aircrack-ng.org/doku.php?id=airmon-ng{O} بکە بۆ زانیاری زیاتر{W}')
             raise Exception('airmon-ng did not find any wireless interfaces')
@@ -302,13 +302,13 @@ class Airmon(Dependency):
             choice = 1
         else:
             # Multiple interfaces found
-            question = Color.s('{+} ڕووەکەی بێسیم هەڵبژێرە ({G}1-%d{W}): ' % (count))
+            question = Color.s('{+} ڕووکاری بێسیم هەڵبژێرە ({G}1-%d{W}): ' % (count))
             choice = raw_input(question)
 
         iface = a.get(choice)
 
         if a.get(choice).interface in monitor_interfaces:
-            Color.pl('{+} {G}%s{W} لە شێوازی چاودێری دایە' % iface.interface)
+            Color.pl('{+} {G}%s{W} لە دۆخی چاودێری دایە' % iface.interface)
         else:
             iface.interface = Airmon.start(iface)
         return iface.interface
@@ -341,7 +341,7 @@ class Airmon(Dependency):
                 for pid, pname in pid_pnames
             ])
             Color.pl('{!} {O}پڕۆسە ناکۆکەکان: %s' % names_and_pids)
-            Color.pl('{!} {O}ئەگەر کێشەت هەیە: {R}kill -9 PID{O} یان دووبارە کواترۆسێک بە {R}--kill{O}){W}')
+            Color.pl('{!} {O}ئەگەر کێشەت هەیە: {R}kill -9 PID{O} یان دووبارە بەکارهێنان بە {R}--kill{O}{W}')
             return
 
         Color.pl('{!} {O}کوشتنی {R}%d {O}پڕۆسە ناکۆکەکان' % len(pid_pnames))
@@ -364,7 +364,7 @@ class Airmon(Dependency):
 
     @staticmethod
     def put_interface_up(iface):
-        Color.p('{!} {O}دانانی ڕووەکە {R}%s بە کارخستن{O}...' % (iface))
+        Color.p('{!} {O}دانانی ڕووکار {R}%s{O} بۆ کارکردن...' % (iface))
         Ifconfig.up(iface)
         Color.pl(' {G}تەواو{W}')
 
