@@ -20,7 +20,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'quatrosec = quatrosec.quatrosec:entry_point'
+            'quatrosec = quatrosec.__main__:entry_point'
         ]
     },
     license='GNU GPLv2',

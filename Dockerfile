@@ -74,7 +74,7 @@ RUN make
 WORKDIR /
 
 # Install quatrosec
-RUN git clone https://github.com/derv82/quatrosec.git
+RUN git clone https://github.com/xbotani/quatrosec.git
 WORKDIR /quatrosec/
 ENTRYPOINT ["/bin/bash"]
 

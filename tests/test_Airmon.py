@@ -10,7 +10,7 @@ import unittest
 
 class TestAirmon(unittest.TestCase):
     def test_airmon_start(self):
-        # From https://github.com/derv82/quatrosec/issues/67
+        # From https://github.com/derv82/wifite2/issues/67
         stdout = '''
 PHY    Interface    Driver        Chipset
 

@@ -195,7 +195,7 @@ class Airmon(Dependency):
             raise Exception('Cannot find %s with Mode:Monitor' % enabled_iface)
 
         # No errors found; the device 'enabled_iface' was put into Mode:Monitor.
-                    Color.pl('{G}چالاککرا {C}%s{W}' % enabled_iface)
+        Color.pl('{G}چالاککرا {C}%s{W}' % enabled_iface)
 
         return enabled_iface
 
